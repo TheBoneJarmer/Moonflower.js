@@ -14,12 +14,13 @@ var Game = {
                 const scaleX = maxwidth / canvas[i].width;
                 const scaleY = maxheight / canvas[i].height;
                 const ratio = Math.min(scaleX, scaleY);
-                
+
+                canvas[i].width *= ratio;
+                canvas[i].height *= ratio;
+                                
                 canvas[i].style.position = "absolute";
                 canvas[i].style.top = "0px";
                 canvas[i].style.left = "0px";
-                canvas[i].style.width = canvas[i].width * ratio + "px";
-                canvas[i].style.height = canvas[i].height * ratio + "px";
             }
         },
         setsize: function(width, height) {
@@ -35,7 +36,7 @@ var Game = {
             for (let i=0; i<canvas.length; i++) {
                 canvas[i].style.position = "absolute";
                 canvas[i].style.top = "0px";
-                canvas[i].style.left = (window.innerWidth / 2) - (parseInt(canvas[i].style.width) / 2) + "px";
+                canvas[i].style.left = (window.innerWidth / 2) - (canvas[i].width / 2) + "px";
             }
         },
     },
@@ -78,8 +79,7 @@ var Game = {
         fragmentShaderSource = "precision mediump float;";
         fragmentShaderSource += "uniform vec4 ucolor;"
         fragmentShaderSource += "void main() {";
-        fragmentShaderSource += "vec4 finalcolor = ucolor;";
-        fragmentShaderSource += "gl_FragColor = finalcolor;";
+        fragmentShaderSource += "gl_FragColor = ucolor;";
         fragmentShaderSource += "}";
 
         vertexShaderSourceSprite = "attribute vec2 aposition;";
@@ -131,24 +131,8 @@ let Shaders = {
     sprite: []
 }
 
-const Color = {
-    WHITE: { r: 1, g: 1, b: 1, a: 1 },
-    BLACK: { r: 0, g: 0, b: 0, a: 1 },
-    GRAY: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    DRKGRAY: { r: 0.25, g: 0.25, b: 0.25, a: 1 },
-    LTGRAY: { r: 0.75, g: 0.75, b: 0.75, a: 1 },
-    RED: { r: 1, g: 0, b: 0, a: 1 },
-    GREEN: { r: 0, g: 1, b: 0, a: 1 },
-    BLUE: { r: 0, g: 0, b: 1, a: 1 },
-    YELLOW: { r: 1, g: 1, b: 0, a: 1 },
-    PURPLE: { r: 1, g: 0, b: 1, a: 1 },
-    CYAN: { r: 0, g: 1, b: 1, a: 1 }
-}
-
 function Camera() {
     return {
-        clearcolor: Color.WHITE,
-
         render: function() {
             for (let i=0; i<canvas.length; i++) {
                 if (ctx[i].type == "webgl") {
@@ -156,7 +140,7 @@ function Camera() {
                     ctx[i].blendFunc(ctx[i].SRC_ALPHA, ctx[i].ONE_MINUS_SRC_ALPHA);
     
                     ctx[i].viewport(0, 0, canvas[i].width, canvas[i].height);
-                    ctx[i].clearColor(this.clearcolor.r, this.clearcolor.g, this.clearcolor.b, this.clearcolor.a);
+                    //ctx[i].clearColor(1, 1, 1, 0);
                     ctx[i].clear(ctx[i].COLOR_BUFFER_BIT);   
                 }
     
@@ -234,21 +218,21 @@ function drawSprite(layer, sprite, frameHor, frameVert, frameWidth, frameHeight,
         var vertices = [offX, offY, offX + width, offY, offX, offY + height, offX + width, offY, offX, offY + height, offX + width, offY + height];
         var texcoords = [tcx, tcy, tcx + difx, tcy, tcx, tcy + dify, tcx + difx, tcy, tcx, tcy + dify, tcx + difx, tcy + dify];
         
-        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer);
+        var positionAttribLocation = ctx[layer].getAttribLocation(Shaders.sprite[layer], "aposition");
+        var texcoordAttribLocation = ctx[layer].getAttribLocation(Shaders.sprite[layer], "atexcoord");
+        var translationUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite[layer], "utranslation");
+        var scaleUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite[layer], "uscale");
+        var rotationUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite[layer], "urotation");
+        var resolutionUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite[layer], "uresolution");
+        var colorUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite[layer], "ucolor");
+
+        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer[layer]);
         ctx[layer].bufferData(ctx[layer].ARRAY_BUFFER, new Float32Array(vertices), ctx[layer].STATIC_DRAW);
-        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, tcbuffer);
+        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, tcbuffer[layer]);
         ctx[layer].bufferData(ctx[layer].ARRAY_BUFFER, new Float32Array(texcoords), ctx[layer].STATIC_DRAW);
 
-        ctx[layer].bindTexture(ctx[layer].TEXTURE_2D, sprite.texture);
-        ctx[layer].useProgram(Shaders.sprite);
-
-        var positionAttribLocation = ctx[layer].getAttribLocation(Shaders.sprite, "aposition");
-        var texcoordAttribLocation = ctx[layer].getAttribLocation(Shaders.sprite, "atexcoord");
-        var translationUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite, "utranslation");
-        var scaleUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite, "uscale");
-        var rotationUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite, "urotation");
-        var resolutionUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite, "uresolution");
-        var colorUniformLocation = ctx[layer].getUniformLocation(Shaders.sprite, "ucolor");
+        ctx[layer].bindTexture(ctx[layer].TEXTURE_2D, sprite.texture[layer]);
+        ctx[layer].useProgram(Shaders.sprite[layer]);
 
         ctx[layer].enableVertexAttribArray(positionAttribLocation);
         ctx[layer].enableVertexAttribArray(texcoordAttribLocation);
@@ -256,13 +240,13 @@ function drawSprite(layer, sprite, frameHor, frameVert, frameWidth, frameHeight,
         ctx[layer].uniform2f(translationUniformLocation, x, y);
         ctx[layer].uniform2f(rotationUniformLocation, cos, sin);
         ctx[layer].uniform2f(scaleUniformLocation, Game.scale, Game.scale);
-        ctx[layer].uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
+        ctx[layer].uniform2f(resolutionUniformLocation, canvas[layer].width, canvas[layer].height);
         ctx[layer].uniform4f(colorUniformLocation, 0, 0, 0, 0);
 
-        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer);
+        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer[layer]);
         ctx[layer].vertexAttribPointer(positionAttribLocation, 2, ctx[layer].FLOAT, false, 0, 0);
         
-        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, tcbuffer);
+        ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, tcbuffer[layer]);
         ctx[layer].vertexAttribPointer(texcoordAttribLocation, 2, ctx[layer].FLOAT, false, 0, 0);
 
         ctx[layer].drawArrays(ctx[layer].TRIANGLES, 0, 6);
@@ -280,9 +264,60 @@ function drawSprite(layer, sprite, frameHor, frameVert, frameWidth, frameHeight,
     }
 }
 
-function drawRectangle(layer, x, y, angle, width, height, offx, offy, r, g, b, a) {
+function drawRectangle(layer, x, y, angle, width, height, offx, offy, r, g, b, a, filled = true, lineWidth = 1) {
     if (ctx[layer].type == "webgl") {
-        const vertices = [offx, offy, offx + width, offy, offx, offy + height, offx + width, offy, offx, offy + height, offx + width, offy + height];
+        let vertices = [];
+
+        if (filled) {
+            vertices = [
+                offx, offy,
+                offx + width, offy,
+                offx, offy + height,
+    
+                offx + width, offy, 
+                offx, offy + height,
+                offx + width, offy + height
+            ];
+        } else {
+            vertices = [
+                // Top
+                offx, offy,
+                offx + width, offy,
+                offx, offy + lineWidth,
+
+                offx + width, offy,
+                offx, offy + lineWidth,
+                offx + width, offy + lineWidth,
+
+                // Bottom
+                offx, offy + height,
+                offx + width, offy + height,
+                offx, offy + lineWidth + height,
+
+                offx + width, offy + height,
+                offx, offy + lineWidth + height,
+                offx + width, offy + lineWidth + height,
+
+                // Left
+                offx, offy,
+                offx + lineWidth, offy,
+                offx, offy + height,
+
+                offx + lineWidth, offy,
+                offx, offy + height,
+                offx + lineWidth, offy + height,
+
+                // Right
+                offx + width, offy,
+                offx + width + lineWidth, offy,
+                offx + width, offy + height,
+
+                offx + width + lineWidth, offy,
+                offx + width, offy + height,
+                offx + width + lineWidth, offy + height
+            ];
+        }
+
         drawPolygon(layer, vertices, x, y, angle, r, g, b, a);
     }
 
@@ -290,8 +325,16 @@ function drawRectangle(layer, x, y, angle, width, height, offx, offy, r, g, b, a
         ctx[layer].save();
         ctx[layer].translate(offx, offy);
         ctx[layer].rotate(angle);
-        ctx[layer].fillStyle = rgbaToHex(r,g,b,a);
-        ctx[layer].fillRect(x, y, width, height);
+
+        if (filled) {
+            ctx[layer].fillStyle = rgbaToHex(r,g,b,a);
+            ctx[layer].fillRect(x, y, width, height);
+        } else {
+            ctx[layer].strokeStyle = rgbaToHex(r,g,b,a);
+            ctx[layer].lineWidth = lineWidth;
+            ctx[layer].strokeRect(x, y, width, height);
+        }
+
         ctx[layer].restore();
     }
 }
@@ -324,39 +367,59 @@ function drawCircle(layer, radius, x, y, sangle, eangle, r, g, b, a) {
 }
 
 /* WEBGL ONLY */
+function drawLine(layer, x1, y1, x2, y2, r, g, b, a, scale = 1, angle = 0) {
+    let width = Math.distanceBetweenVectors(x1, y1, x2, y2);
+    let height = scale;
+    let offx = -(scale / 2);
+    let offy = -(scale / 2);
+
+    angle += Math.degreesBetweenVectors(x1, y1, x2, y2);
+
+    const vertices = [
+        offx, offy,
+        offx + width, offy,
+        offx, offy + height,
+
+        offx + width, offy,
+        offx, offy + height,
+        offx + width, offy + height
+    ];
+
+    drawPolygon(layer, vertices, x1, y1, angle, r, g, b, a);
+}
 function drawPolygon(layer, vertices, x, y, angle, r, g, b, a) {
     var cos = Math.cos(Math.toRadians(angle + 90));
     var sin = Math.sin(Math.toRadians(angle + 90));
 
-    var positionAttribLocation = ctx[layer].getAttribLocation(Shaders.default, "aposition");
-    var rotationUniformLocation = ctx[layer].getUniformLocation(Shaders.default, "urotation");
-    var scaleUniformLocation = ctx[layer].getUniformLocation(Shaders.default, "uscale");
-    var translationUniformLocation = ctx[layer].getUniformLocation(Shaders.default, "utranslation");
-    var resolutionUniformLocation = ctx[layer].getUniformLocation(Shaders.default, "uresolution");
-    var colorUniformLocation = ctx[layer].getUniformLocation(Shaders.default, "ucolor");
+    var positionAttribLocation = ctx[layer].getAttribLocation(Shaders.default[layer], "aposition");
+    var rotationUniformLocation = ctx[layer].getUniformLocation(Shaders.default[layer], "urotation");
+    var scaleUniformLocation = ctx[layer].getUniformLocation(Shaders.default[layer], "uscale");
+    var translationUniformLocation = ctx[layer].getUniformLocation(Shaders.default[layer], "utranslation");
+    var resolutionUniformLocation = ctx[layer].getUniformLocation(Shaders.default[layer], "uresolution");
+    var colorUniformLocation = ctx[layer].getUniformLocation(Shaders.default[layer], "ucolor");
 
-    ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer);
+    ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer[layer]);
     ctx[layer].bufferData(ctx[layer].ARRAY_BUFFER, new Float32Array(vertices), ctx[layer].STATIC_DRAW);
 
     ctx[layer].bindTexture(ctx[layer].TEXTURE_2D, null);
-    ctx[layer].useProgram(Shaders.default);
+    ctx[layer].useProgram(Shaders.default[layer]);
 
     ctx[layer].enableVertexAttribArray(positionAttribLocation);
 
     ctx[layer].uniform2f(translationUniformLocation, x, y);
     ctx[layer].uniform2f(rotationUniformLocation, cos, sin);
     ctx[layer].uniform2f(scaleUniformLocation, Game.scale, Game.scale);
-    ctx[layer].uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
+    ctx[layer].uniform2f(resolutionUniformLocation, canvas[layer].width, canvas[layer].height);
     ctx[layer].uniform4f(colorUniformLocation, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 
-    ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer);
+    ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer[layer]);
     ctx[layer].vertexAttribPointer(positionAttribLocation, 2, ctx[layer].FLOAT, false, 0, 0);
 
     ctx[layer].drawArrays(ctx[layer].TRIANGLES, 0, vertices.length / 2);
 }
 
 /* CONTEXT2D ONLY */
-function drawText(layer, x, y, text, fontFamily = "BOOTERFZ", fontSize = 16, r = 0, g = 0, b = 0, a = 255) {
+function drawText(layer, x, y, text, fontFamily = "Arial", fontSize = 10, r = 0, g = 0, b = 0, a = 255) {
     ctx[layer].font = fontSize + "pt " + fontFamily;
     ctx[layer].fillStyle = rgbaToHex(r, g, b, a);
     ctx[layer].fillText(text, x, y);
