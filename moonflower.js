@@ -9,27 +9,38 @@ var Game = {
     mobile: false,
 
     Window: {
+        ratio: 1,
+
         resize: function(maxwidth, maxheight) {
             for (let i=0; i<canvas.length; i++) {
                 const scaleX = maxwidth / canvas[i].width;
                 const scaleY = maxheight / canvas[i].height;
                 const ratio = Math.min(scaleX, scaleY);
 
+                this.ratio = ratio;
+
                 canvas[i].width *= ratio;
                 canvas[i].height *= ratio;
-                                
                 canvas[i].style.position = "absolute";
                 canvas[i].style.top = "0px";
                 canvas[i].style.left = "0px";
+                canvas[i].style.width = canvas[0].width + "px";
+                canvas[i].style.height = canvas[0].height + "px";
             }
         },
-        setsize: function(width, height) {
+        setSize: function(width, height) {
             for (let i=0; i<canvas.length; i++) {
-                canvas[i].style.position = "absolute";
-                canvas[i].style.top = "0px";
-                canvas[i].style.left = "0px";
                 canvas[i].width = width;
                 canvas[i].height = height;
+                //canvas[i].style.width = width + "px";
+                //canvas[i].style.height = height + "px";
+            }
+        },
+        setLocation: function(x, y) {
+            for (let i=0; i<canvas.length; i++) {
+                canvas[i].style.position = "absolute";
+                canvas[i].style.left = x + "px";
+                canvas[i].style.top = y + "px";
             }
         },
         center() {
@@ -140,7 +151,6 @@ function Camera() {
                     ctx[i].blendFunc(ctx[i].SRC_ALPHA, ctx[i].ONE_MINUS_SRC_ALPHA);
     
                     ctx[i].viewport(0, 0, canvas[i].width, canvas[i].height);
-                    //ctx[i].clearColor(1, 1, 1, 0);
                     ctx[i].clear(ctx[i].COLOR_BUFFER_BIT);   
                 }
     
@@ -175,7 +185,6 @@ function Shader(layer, vsource, fsource) {
     ctx[layer].attachShader(program, vshader);
     ctx[layer].attachShader(program, fshader);
     ctx[layer].linkProgram(program);
-
     ctx[layer].deleteShader(vshader);
     ctx[layer].deleteShader(fshader);
 
@@ -230,25 +239,19 @@ function drawSprite(layer, sprite, frameHor, frameVert, frameWidth, frameHeight,
         ctx[layer].bufferData(ctx[layer].ARRAY_BUFFER, new Float32Array(vertices), ctx[layer].STATIC_DRAW);
         ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, tcbuffer[layer]);
         ctx[layer].bufferData(ctx[layer].ARRAY_BUFFER, new Float32Array(texcoords), ctx[layer].STATIC_DRAW);
-
         ctx[layer].bindTexture(ctx[layer].TEXTURE_2D, sprite.texture[layer]);
         ctx[layer].useProgram(Shaders.sprite[layer]);
-
         ctx[layer].enableVertexAttribArray(positionAttribLocation);
         ctx[layer].enableVertexAttribArray(texcoordAttribLocation);
-
         ctx[layer].uniform2f(translationUniformLocation, x, y);
         ctx[layer].uniform2f(rotationUniformLocation, cos, sin);
         ctx[layer].uniform2f(scaleUniformLocation, Game.scale, Game.scale);
         ctx[layer].uniform2f(resolutionUniformLocation, canvas[layer].width, canvas[layer].height);
         ctx[layer].uniform4f(colorUniformLocation, 0, 0, 0, 0);
-
         ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer[layer]);
-        ctx[layer].vertexAttribPointer(positionAttribLocation, 2, ctx[layer].FLOAT, false, 0, 0);
-        
+        ctx[layer].vertexAttribPointer(positionAttribLocation, 2, ctx[layer].FLOAT, false, 0, 0);    
         ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, tcbuffer[layer]);
         ctx[layer].vertexAttribPointer(texcoordAttribLocation, 2, ctx[layer].FLOAT, false, 0, 0);
-
         ctx[layer].drawArrays(ctx[layer].TRIANGLES, 0, 6);
     }
 
@@ -327,10 +330,10 @@ function drawRectangle(layer, x, y, angle, width, height, offx, offy, r, g, b, a
         ctx[layer].rotate(angle);
 
         if (filled) {
-            ctx[layer].fillStyle = rgbaToHex(r,g,b,a);
+            ctx[layer].fillStyle = rgbToHex(r,g,b);
             ctx[layer].fillRect(x, y, width, height);
         } else {
-            ctx[layer].strokeStyle = rgbaToHex(r,g,b,a);
+            ctx[layer].strokeStyle = rgbToHex(r,g,b);
             ctx[layer].lineWidth = lineWidth;
             ctx[layer].strokeRect(x, y, width, height);
         }
@@ -361,7 +364,7 @@ function drawCircle(layer, radius, x, y, sangle, eangle, r, g, b, a) {
     }
 
     if (ctx[layer].type == "2d") {
-        ctx[layer].fillStyle = rgbaToHex(r,g,b,a);
+        ctx[layer].fillStyle = rgbToHex(r,g,b);
         ctx[layer].arc(x, y, radius, sangle, eangle);
     }
 }
@@ -400,28 +403,23 @@ function drawPolygon(layer, vertices, x, y, angle, r, g, b, a) {
 
     ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer[layer]);
     ctx[layer].bufferData(ctx[layer].ARRAY_BUFFER, new Float32Array(vertices), ctx[layer].STATIC_DRAW);
-
     ctx[layer].bindTexture(ctx[layer].TEXTURE_2D, null);
     ctx[layer].useProgram(Shaders.default[layer]);
-
     ctx[layer].enableVertexAttribArray(positionAttribLocation);
-
     ctx[layer].uniform2f(translationUniformLocation, x, y);
     ctx[layer].uniform2f(rotationUniformLocation, cos, sin);
     ctx[layer].uniform2f(scaleUniformLocation, Game.scale, Game.scale);
     ctx[layer].uniform2f(resolutionUniformLocation, canvas[layer].width, canvas[layer].height);
     ctx[layer].uniform4f(colorUniformLocation, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
-
     ctx[layer].bindBuffer(ctx[layer].ARRAY_BUFFER, vbuffer[layer]);
     ctx[layer].vertexAttribPointer(positionAttribLocation, 2, ctx[layer].FLOAT, false, 0, 0);
-
     ctx[layer].drawArrays(ctx[layer].TRIANGLES, 0, vertices.length / 2);
 }
 
 /* CONTEXT2D ONLY */
-function drawText(layer, x, y, text, fontFamily = "Arial", fontSize = 10, r = 0, g = 0, b = 0, a = 255) {
+function drawText(layer, x, y, text, fontFamily = "Arial", fontSize = 10, r = 0, g = 0, b = 0) {
     ctx[layer].font = fontSize + "pt " + fontFamily;
-    ctx[layer].fillStyle = rgbaToHex(r, g, b, a);
+    ctx[layer].fillStyle = rgbToHex(r, g, b);
     ctx[layer].fillText(text, x, y);
 }
 
@@ -466,24 +464,18 @@ var Cursor = {
                 Cursor.down = true;
                 Cursor.x = e.clientX - canvas[canvas.length - 1].getBoundingClientRect().left;
                 Cursor.y = e.clientY - canvas[canvas.length - 1].getBoundingClientRect().top;
-                Cursor.x /= Game.Window.ratio;
-                Cursor.y /= Game.Window.ratio;
                 Cursor.x /= Game.scale;
                 Cursor.y /= Game.scale;
             });
             canvas[canvas.length - 1].addEventListener("mousemove", function(e) {
                 Cursor.x = e.clientX - canvas[canvas.length - 1].getBoundingClientRect().left;
                 Cursor.y = e.clientY - canvas[canvas.length - 1].getBoundingClientRect().top;
-                Cursor.x /= Game.Window.ratio;
-                Cursor.y /= Game.Window.ratio;
                 Cursor.x /= Game.scale;
                 Cursor.y /= Game.scale;
             });
             canvas[canvas.length - 1].addEventListener("mouseup", function(e) {
                 Cursor.x = e.clientX - canvas[canvas.length - 1].getBoundingClientRect().left;
                 Cursor.y = e.clientY - canvas[canvas.length - 1].getBoundingClientRect().top;
-                Cursor.x /= Game.Window.ratio;
-                Cursor.y /= Game.Window.ratio;
                 Cursor.x /= Game.scale;
                 Cursor.y /= Game.scale;
                 Cursor.down = false;
@@ -756,6 +748,15 @@ function requestFullScreen() {
 			if (document.body.mozRequestFullScreen != undefined) document.body.mozRequestFullScreen();
 		}, 100);
 	}
+}
+function rgbToHex(r, g, b) {
+    var output = "#";
+
+    output += r.toString(16).padStart(2, "0");
+    output += g.toString(16).padStart(2, "0");
+    output += b.toString(16).padStart(2, "0");
+
+    return output;
 }
 function rgbaToHex(r, g, b, a) {
     var output = "#";
