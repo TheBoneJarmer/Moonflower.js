@@ -1,7 +1,7 @@
 const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("webgl");
 
-const Game = {
+const Arqanore = {
     mobile: false,
 
     init: async function() {
@@ -96,7 +96,7 @@ const Cursor = {
     up: false,
 
     init: async function() {
-        if (Game.mobile) {
+        if (Arqanore.mobile) {
             canvas.addEventListener("touchstart", function(e) {
                 Cursor.down = true;
                 Cursor.x = e.changedTouches[0].clientX - canvas.getBoundingClientRect().left;
